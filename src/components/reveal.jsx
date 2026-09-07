@@ -1,13 +1,11 @@
 import { motion, useReducedMotion } from 'framer-motion';
 import { fadeUp, inView } from '../lib/motion-presets.js';
 
-// Enrobe un bloc pour le faire apparaître en fondu montant quand il entre dans
-// le viewport. Si l'utilisateur a demandé moins de mouvement, on rend le
-// contenu tel quel, sans animation.
+// Apparition au scroll : fondu + léger déplacement vers le haut.
+// Neutralisé si l'utilisateur préfère moins de mouvement.
 export default function Reveal({
   children,
   as = 'div',
-  delay = 0,
   variants = fadeUp,
   className = '',
   ...rest
@@ -31,7 +29,6 @@ export default function Reveal({
       initial="hidden"
       whileInView="visible"
       viewport={inView}
-      transition={{ delay }}
       {...rest}
     >
       {children}

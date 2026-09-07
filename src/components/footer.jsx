@@ -1,24 +1,39 @@
-import { profile } from '../data/content.js';
-import Icon from './icon.jsx';
+import { profile, social } from '../data/content.js';
+import Icon from './icons.jsx';
 
 export default function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-border/60 py-10">
-      <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-4 px-5 sm:flex-row sm:px-8">
-        <p className="text-sm text-faint">
+    <footer className="mt-8 border-t border-border">
+      <div
+        className="mx-auto flex w-full max-w-6xl flex-col items-center gap-4 px-5 py-10 sm:flex-row sm:justify-between sm:px-8"
+      >
+        <p className="text-sm text-muted">
           {profile.name} — {year}
         </p>
-        <p className="text-sm text-faint">
-          Construit avec React, Tailwind CSS et Framer Motion.
-        </p>
+
+        <div className="flex items-center gap-2.5">
+          {social.map((s) => (
+            <a
+              key={s.label}
+              href={s.href}
+              target={s.href.startsWith('http') ? '_blank' : undefined}
+              rel={s.href.startsWith('http') ? 'noopener noreferrer' : undefined}
+              aria-label={s.label}
+              className="grid h-9 w-9 place-items-center rounded-full border border-border text-muted transition-colors hover:border-accent/60 hover:text-text"
+            >
+              <Icon name={s.icon} size={16} />
+            </a>
+          ))}
+        </div>
+
         <a
           href="#accueil"
-          className="inline-flex items-center gap-2 text-sm text-muted transition-colors hover:text-accent"
+          className="flex items-center gap-2 text-sm text-muted transition-colors hover:text-text"
         >
           Haut de page
-          <Icon name="arrowUp" size={16} />
+          <Icon name="arrowUp" size={15} />
         </a>
       </div>
     </footer>

@@ -1,56 +1,72 @@
 import { motion, useReducedMotion } from 'framer-motion';
 import Section from './section.jsx';
-import { skillGroups } from '../data/content.js';
-import { fadeUp, popIn, stagger, inView } from '../lib/motion-presets.js';
-import Icon from './icon.jsx';
+import { skillGroups, catColors } from '../data/content.js';
+import { stagger, fadeUp, inView } from '../lib/motion-presets.js';
+import Icon from './icons.jsx';
 
+// Une carte par catégorie ; la couleur de catégorie teinte l'icône et un
+// liseré en haut de la carte.
 export default function Skills() {
   const reduce = useReducedMotion();
 
   return (
     <Section
       id="competences"
-      kicker="Compétences techniques"
-      title="Ce avec quoi je construis"
+      kicker="Mes compétences"
+      title="Technologies &"
+      accent="outils"
     >
       <motion.div
-        variants={stagger(0.08)}
+        variants={stagger(0.07)}
         initial="hidden"
         whileInView="visible"
         viewport={inView}
-        className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
+        className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
       >
-        {skillGroups.map((group) => (
-          <motion.article
-            key={group.label}
-            variants={fadeUp}
-            className="group rounded-2xl border border-border bg-surface/70 p-6 transition-colors hover:border-primary-2/60"
-          >
-            <div className="mb-4 flex items-center gap-3">
-              <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-surface-2 text-accent">
-                <Icon name={group.icon} size={20} />
-              </span>
-              <h3 className="text-base font-semibold text-ink">{group.label}</h3>
-            </div>
-
-            <motion.ul
-              variants={stagger(0.04)}
-              className="flex flex-wrap gap-2"
+        {skillGroups.map((group) => {
+          const c = catColors[group.cat];
+          return (
+            <motion.article
+              key={group.label}
+              variants={fadeUp}
+              whileHover={reduce ? undefined : { y: -4 }}
+              className="card relative overflow-hidden p-5"
+              style={{ borderTop: `2px solid ${c}` }}
             >
-              {group.items.map((item) => (
-                <motion.li
-                  key={item}
-                  variants={popIn}
-                  whileHover={reduce ? undefined : { scale: 1.07 }}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-bg/60 px-2.5 py-1.5 text-sm text-muted"
+              <div
+                className="pointer-events-none absolute -top-20 left-0 h-40 w-full opacity-40"
+                style={{
+                  background: `radial-gradient(150px 90px at 25% 100%, ${c}, transparent 72%)`,
+                }}
+              />
+              <div className="relative">
+                <span
+                  className="grid h-11 w-11 place-items-center rounded-xl border"
+                  style={{
+                    background: `color-mix(in srgb, ${c} 20%, transparent)`,
+                    borderColor: `color-mix(in srgb, ${c} 45%, transparent)`,
+                    color: c,
+                  }}
                 >
-                  <span className="h-1.5 w-1.5 rounded-full bg-gradient-to-r from-primary-2 to-accent" />
-                  {item}
-                </motion.li>
-              ))}
-            </motion.ul>
-          </motion.article>
-        ))}
+                  <Icon name={group.icon} size={20} />
+                </span>
+                <h3 className="mt-3 text-base font-semibold text-text">
+                  {group.label}
+                </h3>
+                <ul className="mt-3 flex flex-wrap gap-1.5">
+                  {group.items.map((item) => (
+                    <li
+                      key={item}
+                      className="rounded-full border border-border bg-white/[0.03] px-2.5 py-1 text-xs text-muted"
+                    >
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </motion.article>
+          );
+        })}
       </motion.div>
     </Section>
   );

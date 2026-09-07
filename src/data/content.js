@@ -6,13 +6,24 @@ export const profile = {
   title:
     'Étudiant en 3e année de développement de systèmes informatiques à SupNum',
   tagline:
-    'Passionné par le développement logiciel, motivé et désireux de progresser à travers des projets pratiques.',
+    'Je conçois et construis des applications web, mobiles et back-end, de la modélisation du domaine jusqu’à l’interface.',
   // L'image est fournie séparément : déposer le fichier dans public/profile.jpg.
   // Un rendu de repli (initiales) s'affiche tant qu'elle est absente.
   photo: '/profile.jpg',
   initials: 'CH',
   location: 'Mauritanie',
 };
+
+export const hero = {
+  greeting: 'Bonjour, je suis',
+  hand: 'concevoir · construire · itérer',
+};
+
+export const social = [
+  { label: 'GitHub', icon: 'github', href: 'https://github.com/chighali-hub' },
+  { label: 'Email', icon: 'mail', href: 'mailto:habottchighali@gmail.com' },
+  { label: 'WhatsApp', icon: 'whatsapp', href: 'https://wa.me/22234533237' },
+];
 
 export const about = {
   paragraphs: [
@@ -30,53 +41,84 @@ export const about = {
   ],
 };
 
+// Couleur par catégorie (valeurs en dur : Tailwind ne préserve pas une
+// variable CSS dont le nom est construit dynamiquement).
+export const catColors = {
+  web: '#38bdf8',
+  front: '#3b82f6',
+  back: '#22c55e',
+  mobile: '#ec4899',
+  data: '#8b5cf6',
+  prog: '#6366f1',
+  tools: '#f59e0b',
+  devops: '#f97316',
+};
+
 export const skillGroups = [
-  { label: 'Langages web', icon: 'code', items: ['HTML5', 'CSS', 'JavaScript', 'PHP'] },
-  { label: 'Frontend', icon: 'layout', items: ['React.js', 'Next.js'] },
+  { label: 'Langages web', icon: 'code', cat: 'web', items: ['HTML5', 'CSS', 'JavaScript', 'PHP'] },
+  { label: 'Frontend', icon: 'layout', cat: 'front', items: ['React.js', 'Next.js'] },
   {
     label: 'Backend',
     icon: 'server',
+    cat: 'back',
     items: ['Django', 'Flask', 'Express.js', 'Spring Boot'],
   },
-  { label: 'Mobile', icon: 'phone', items: ['Flutter'] },
-  { label: 'Bases de données', icon: 'database', items: ['SQL', 'NoSQL (MongoDB)'] },
+  { label: 'Mobile', icon: 'phone', cat: 'mobile', items: ['Flutter'] },
+  {
+    label: 'Bases de données',
+    icon: 'database',
+    cat: 'data',
+    items: ['SQL', 'NoSQL (MongoDB)'],
+  },
   {
     label: 'Programmation',
     icon: 'terminal',
+    cat: 'prog',
     items: ['Python', 'C++', 'POO', 'Java', 'Prolog'],
   },
   {
     label: 'Outils',
     icon: 'wrench',
+    cat: 'tools',
     items: ['Modelio', 'VS Code', 'PyCharm', 'IntelliJ IDEA', 'Eclipse', 'Word'],
   },
-  { label: 'DevOps', icon: 'infinity', items: ['Docker', 'Jenkins', 'Git', 'GitHub'] },
+  {
+    label: 'DevOps',
+    icon: 'infinity',
+    cat: 'devops',
+    items: ['Docker', 'Jenkins', 'Git', 'GitHub'],
+  },
 ];
 
 export const projects = [
   {
     name: 'Gestion de pharmacie',
+    icon: 'box',
     summary: 'Application de gestion de stock et de ventes.',
     tags: ['Gestion de stock', 'Ventes'],
   },
   {
     name: 'Bibliothèque numérique à SupNum',
+    icon: 'book',
     summary: 'Plateforme web de consultation de ressources.',
     tags: ['Plateforme web', 'Consultation de ressources'],
   },
   {
     name: 'Gestion des absences à SupNum',
+    icon: 'calendar',
     summary: 'Solution mobile et web pour le suivi des absences en temps réel.',
     tags: ['Mobile', 'Web', 'Temps réel'],
   },
   {
     name: 'SMTS Group — Site vitrine',
+    icon: 'window',
     summary:
       "Site vitrine développé pour l'entreprise SMTS Group : une application React entièrement frontend, animée et responsive.",
     tags: ['React', 'Tailwind CSS', 'Framer Motion', 'React Router v6'],
   },
   {
     name: 'Académie Mobile (MaharaAPP)',
+    icon: 'graduation',
     kind: 'Plateforme de formation professionnelle',
     summary:
       "Plateforme d'apprentissage en ligne bâtie sur une architecture multi-canal : deux applications pour deux publics distincts, servies par une même API.",
@@ -120,10 +162,22 @@ export const languages = [
   { name: 'Français', level: 'Courant', dots: 4 },
 ];
 
+// Résumé factuel du parcours, dérivé des compétences et des projets ci-dessus.
+export const highlights = [
+  'Développement web front-end et back-end',
+  'Applications mobiles avec Flutter',
+  'Conception et consommation d’API REST',
+  'Bases de données SQL et NoSQL',
+  'Intégration et déploiement continus (CI/CD, Vercel)',
+  'Apprentissage par projets menés de bout en bout',
+];
+
 export const contact = {
   email: 'habottchighali@gmail.com',
-  phoneDisplay: '34 53 32 37',
-  phoneHref: '34533237',
+  phoneDisplay: '+222 34 53 32 37',
+  // Lien direct vers une conversation WhatsApp (indicatif Mauritanie 222 +
+  // numéro à 8 chiffres, sans préfixe interurbain).
+  whatsapp: 'https://wa.me/22234533237',
 };
 
 export const nav = [

@@ -38,6 +38,14 @@ export default [
   },
 
   {
+    // Fonctions serverless Vercel : elles tournent sous Node, pas dans le navigateur.
+    files: ['api/**/*.js'],
+    languageOptions: {
+      globals: { ...globals.node },
+    },
+  },
+
+  {
     // Les fichiers de test : globals de vitest injectés via `globals: true`
     // dans la config test de Vite, déclarés ici pour ESLint.
     files: ['**/*.test.{js,jsx}', 'src/setup-tests.js'],

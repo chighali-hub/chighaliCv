@@ -119,11 +119,7 @@ jobs:
         run: npm ci
 
       # Tests réels en mode non interactif (CI=true, défini au niveau du
-      # workflow ; vitest run ne surveille pas les fichiers).
-      #
-      # COMPROMIS TEMPORAIRE : --passWithNoTests empêche la chaîne d'échouer tant
-      # que la suite est quasi vide. Il n'y a qu'un test de fumée pour l'instant.
-      # À RETIRER dès que la couverture est réelle, pour qu'une suite vide
-      # redevienne une erreur (une porte qui laisse passer le vide ne prouve rien).
+      # workflow ; vitest run ne surveille pas les fichiers). Pas de
+      # --passWithNoTests : une suite vide doit désormais faire échouer la porte.
       - name: executer les tests
-        run: npm test -- --passWithNoTests
+        run: npm test

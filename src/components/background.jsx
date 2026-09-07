@@ -1,31 +1,17 @@
 import { motion, useReducedMotion } from 'framer-motion';
 
-// Décor de fond : deux halos colorés en dérive lente et une grille discrète.
-// Purement décoratif (aria-hidden), placé derrière tout le contenu.
+// Halos diffus bleu et violet en arrière-plan : grandes formes très floutées,
+// faible opacité, en dérive lente. Purement décoratif.
 export default function Background() {
   const reduce = useReducedMotion();
 
-  const drift = reduce
-    ? {}
-    : {
-        animate: {
-          x: [0, 40, -20, 0],
-          y: [0, -30, 20, 0],
-          scale: [1, 1.1, 0.95, 1],
-        },
-        transition: { duration: 26, repeat: Infinity, ease: 'easeInOut' },
-      };
-
-  const drift2 = reduce
-    ? {}
-    : {
-        animate: {
-          x: [0, -35, 25, 0],
-          y: [0, 25, -15, 0],
-          scale: [1, 0.9, 1.08, 1],
-        },
-        transition: { duration: 32, repeat: Infinity, ease: 'easeInOut' },
-      };
+  const float = (a, b, d) =>
+    reduce
+      ? {}
+      : {
+          animate: { x: [0, a, 0], y: [0, b, 0] },
+          transition: { duration: d, repeat: Infinity, ease: 'easeInOut' },
+        };
 
   return (
     <div
@@ -33,31 +19,30 @@ export default function Background() {
       className="pointer-events-none fixed inset-0 -z-10 overflow-hidden"
     >
       <motion.div
-        {...drift}
-        className="absolute -left-32 -top-40 h-[38rem] w-[38rem] rounded-full opacity-30 blur-[120px]"
+        {...float(40, -30, 26)}
+        className="absolute -left-40 -top-48 h-[42rem] w-[42rem] rounded-full opacity-30"
         style={{
           background:
-            'radial-gradient(circle at center, #6366f1, transparent 70%)',
+            'radial-gradient(circle at center, var(--color-glow-blue), transparent 70%)',
+          filter: 'blur(130px)',
         }}
       />
       <motion.div
-        {...drift2}
-        className="absolute -right-40 top-1/3 h-[34rem] w-[34rem] rounded-full opacity-25 blur-[120px]"
+        {...float(-36, 28, 32)}
+        className="absolute -right-48 top-24 h-[40rem] w-[40rem] rounded-full opacity-25"
         style={{
           background:
-            'radial-gradient(circle at center, #22d3ee, transparent 70%)',
+            'radial-gradient(circle at center, var(--color-glow-violet), transparent 70%)',
+          filter: 'blur(150px)',
         }}
       />
-      <div
-        className="absolute inset-0 opacity-[0.15]"
+      <motion.div
+        {...float(24, 24, 38)}
+        className="absolute left-1/3 top-1/2 h-[34rem] w-[34rem] rounded-full opacity-[0.16]"
         style={{
-          backgroundImage:
-            'linear-gradient(#273043 1px, transparent 1px), linear-gradient(90deg, #273043 1px, transparent 1px)',
-          backgroundSize: '64px 64px',
-          maskImage:
-            'radial-gradient(ellipse at 50% 0%, #000 30%, transparent 75%)',
-          WebkitMaskImage:
-            'radial-gradient(ellipse at 50% 0%, #000 30%, transparent 75%)',
+          background:
+            'radial-gradient(circle at center, var(--color-accent-2), transparent 70%)',
+          filter: 'blur(160px)',
         }}
       />
     </div>

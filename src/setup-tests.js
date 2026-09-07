@@ -1,9 +1,9 @@
 // Étend les assertions de vitest avec les matchers DOM (toBeInTheDocument, etc.).
 import '@testing-library/jest-dom/vitest';
 
-// jsdom n'implémente ni IntersectionObserver ni matchMedia : on fournit des
-// doubles inertes pour que les composants qui les utilisent (révélation au
-// scroll, préférence de mouvement réduit) se montent sans erreur en test.
+// jsdom n'implémente pas ces API navigateur : doubles inertes pour que les
+// composants qui les utilisent (révélation au scroll, préférence de mouvement,
+// mesure du diagramme) se montent sans erreur en test.
 if (!globalThis.IntersectionObserver) {
   globalThis.IntersectionObserver = class {
     observe() {}
@@ -12,6 +12,14 @@ if (!globalThis.IntersectionObserver) {
     takeRecords() {
       return [];
     }
+  };
+}
+
+if (!globalThis.ResizeObserver) {
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
   };
 }
 
