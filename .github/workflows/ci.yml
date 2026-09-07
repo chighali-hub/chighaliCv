@@ -1,0 +1,129 @@
+# Intégration continue : les portes qui doivent passer avant toute fusion et
+# avant tout déploiement. Trois jobs séparés (lint, build, test) pour lire d'un
+# coup d'œil ce qui casse, et pour les paralléliser : ils n'ont aucune
+# dépendance entre eux.
+#
+# Les actions tierces sont épinglées par empreinte de commit (le tag lisible est
+# en commentaire). Un tag comme @v7 est mobile : son contenu peut changer sans
+# que la référence bouge. L'empreinte, non.
+name: ci
+
+# Une seule branche de longue vie dans ce dépôt : main. On valide donc ce qui
+# entre dans main (pull_request) et ce qui y est déjà (push). Aucune autre
+# branche n'est gérée volontairement.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Droit minimal : les jobs ne font que lire l'arborescence. Aucune écriture via
+# l'API GitHub (pas de commentaire de PR, pas de publication de release), donc on
+# n'élève rien au-dessus de contents: read.
+permissions:
+  contents: read
+
+# Une exécution utile à la fois par référence git. Un nouveau commit sur la même
+# branche ou la même PR rend l'exécution précédente périmée : on l'annule pour
+# ne pas payer deux fois le runner et ne pas afficher un résultat obsolète.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# CI=true coupe tout mode interactif dans les outils de la chaîne (vitest, etc.).
+env:
+  CI: true
+
+jobs:
+  linting:
+    name: lint
+    runs-on: ubuntu-latest
+    # Le lint s'exécute en quelques secondes. 10 minutes couvrent un runner lent
+    # ou une longue file d'attente sans laisser un job zombie tourner une heure.
+    timeout-minutes: 10
+    steps:
+      - name: recuperer le code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: installer node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          # Source unique de la version de Node : .nvmrc. Le poste de dev et la
+          # CI lisent le même fichier ; « ça marche chez moi » redevient un
+          # défaut de chaîne et non une fatalité.
+          node-version-file: .nvmrc
+          # Cache du dossier npm, indexé sur le hash de package-lock.json.
+          cache: npm
+
+      # npm ci (et jamais npm install en CI) : installe exactement l'arbre figé
+      # dans package-lock.json et échoue si le lockfile diverge de package.json.
+      # npm install réécrirait le lockfile en silence, cassant la reproductibilité.
+      - name: installer les dependances
+        run: npm ci
+
+      - name: analyser le code (eslint)
+        run: npm run lint
+
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    # Construction Vite d'un site vitrine : courte. 15 minutes absorbent une
+    # reconstruction complète du cache npm.
+    timeout-minutes: 15
+    steps:
+      - name: recuperer le code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: installer node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: installer les dependances
+        run: npm ci
+
+      # Build réel de production : c'est cette commande qui sert aussi au
+      # déploiement. Si elle casse ici, rien ne part en ligne.
+      - name: construire le site
+        run: npm run build
+
+      # L'artefact de build est conservé pour inspection (diagnostic d'un écart
+      # entre local et CI). Le déploiement reconstruit à partir du même commit,
+      # donc l'empreinte reste vérifiable par le SHA.
+      - name: publier l artefact de build
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dist
+          path: dist
+          retention-days: 7
+          if-no-files-found: error
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    # Suite de tests courte aujourd'hui. 10 minutes laissent de la marge quand
+    # elle grossira.
+    timeout-minutes: 10
+    steps:
+      - name: recuperer le code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: installer node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: installer les dependances
+        run: npm ci
+
+      # Tests réels en mode non interactif (CI=true, défini au niveau du
+      # workflow ; vitest run ne surveille pas les fichiers).
+      #
+      # COMPROMIS TEMPORAIRE : --passWithNoTests empêche la chaîne d'échouer tant
+      # que la suite est quasi vide. Il n'y a qu'un test de fumée pour l'instant.
+      # À RETIRER dès que la couverture est réelle, pour qu'une suite vide
+      # redevienne une erreur (une porte qui laisse passer le vide ne prouve rien).
+      - name: executer les tests
+        run: npm test -- --passWithNoTests

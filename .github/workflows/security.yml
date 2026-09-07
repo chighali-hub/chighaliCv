@@ -1,0 +1,122 @@
+# Analyse de sécurité : recherche de motifs dangereux dans le code (semgrep) et
+# de vulnérabilités connues dans les dépendances (trivy). Deux jobs séparés,
+# indépendants, pour isoler ce qui bloque.
+name: security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  # Un dépôt sans commit pendant des semaines reste exposé aux CVE publiées
+  # entre-temps. Balayage hebdomadaire indépendant de l'activité : lundi 04:00
+  # UTC, hors heures de travail, pour ne pas entrer en concurrence avec les
+  # exécutions déclenchées par des poussées.
+  schedule:
+    - cron: "0 4 * * 1"
+
+# Lecture seule : aucune de ces analyses n'écrit dans le dépôt ni n'appelle
+# l'API GitHub en écriture. (Pas d'envoi de résultats SARIF vers l'onglet
+# Security, ce qui demanderait security-events: write ; on lit le rapport dans
+# les logs du job.)
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  semgrep:
+    name: semgrep
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Image officielle Semgrep, version figée. Une analyse dont le moteur ou les
+    # règles changent tout seuls d'une exécution à l'autre n'est pas
+    # reproductible : un même commit doit toujours donner le même verdict.
+    container:
+      image: semgrep/semgrep:1.176.1
+    steps:
+      - name: recuperer le code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # PASSE 1 — Secrets. BLOQUANTE DÈS LE DÉPART (--error : code de sortie non
+      # nul si une règle correspond). Une clé, un jeton ou un mot de passe
+      # commité ne se négocie pas et ne se met pas en "advisory".
+      - name: semgrep secrets (bloquant)
+        run: >-
+          semgrep scan --error --disable-version-check --metrics=off
+          --config p/secrets
+          --exclude node_modules --exclude dist --exclude coverage
+
+      # PASSE 2 — Sécurité applicative et spécificités React / JavaScript.
+      # ADVISORY au démarrage (continue-on-error : le job reste vert même si des
+      # motifs sont signalés). On collecte d'abord le signal et on traite le
+      # bruit initial ; passer cette passe en bloquante (retirer
+      # continue-on-error) est une décision à prendre une fois la base assainie,
+      # et elle portera sa raison dans le message de commit.
+      - name: semgrep owasp + react/js (advisory)
+        continue-on-error: true
+        run: >-
+          semgrep scan --error --disable-version-check --metrics=off
+          --config p/owasp-top-ten
+          --config p/javascript
+          --config p/react
+          --exclude node_modules --exclude dist --exclude coverage
+
+  trivy:
+    name: trivy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: recuperer le code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Binaire officiel, version figée (TRIVY_VERSION), récupéré depuis la
+      # release GitHub et vérifié par sa somme SHA-256 avant exécution. On
+      # n'exécute donc aucun script téléchargé "à l'aveugle" (pas de curl | sh)
+      # et on n'ajoute aucune action tierce du Marketplace : la chaîne
+      # d'approvisionnement reste courte et vérifiable.
+      - name: installer trivy (release epinglee + verification de somme)
+        env:
+          TRIVY_VERSION: "0.74.0"
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          base="https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}"
+          curl -fsSLO "${base}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          curl -fsSLO "${base}/trivy_${TRIVY_VERSION}_checksums.txt"
+          # Ne conserver que la ligne du tarball téléchargé, puis contrôler.
+          grep " trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz\$" "trivy_${TRIVY_VERSION}_checksums.txt" > trivy.sha256
+          sha256sum -c trivy.sha256
+          mkdir -p trivy && tar -xzf "trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz" -C trivy trivy
+          "$RUNNER_TEMP/trivy/trivy" --version
+
+      # Scan "fs" ciblé sur le lockfile : c'est lui qui fige les versions
+      # réellement installées, donc la seule source de vérité pour les
+      # vulnérabilités de dépendances. BLOQUANT UNIQUEMENT SUR CRITICAL
+      # (--exit-code 1 limité à cette sévérité) : le HIGH et en dessous sont
+      # affichés pour information sans casser la chaîne au démarrage.
+      #
+      # Pas de scan IaC (--scanners misconfig) : le projet est un site 100 %
+      # statique, sans Dockerfile, sans manifeste Kubernetes, sans Terraform.
+      # Il n'y a aucune infrastructure décrite dans le dépôt à analyser.
+      - name: scanner les dependances (bloquant sur CRITICAL)
+        run: |
+          "$RUNNER_TEMP/trivy/trivy" fs \
+            --scanners vuln \
+            --severity CRITICAL \
+            --exit-code 1 \
+            --no-progress \
+            package-lock.json
+
+      # Passe informative : tout le reste (HIGH, MEDIUM, LOW) listé sans bloquer.
+      - name: inventaire complet des vulnerabilites (informatif)
+        continue-on-error: true
+        run: |
+          "$RUNNER_TEMP/trivy/trivy" fs \
+            --scanners vuln \
+            --severity HIGH,MEDIUM,LOW \
+            --exit-code 0 \
+            --no-progress \
+            package-lock.json

@@ -1,0 +1,116 @@
+# Déploiement vers Vercel. Ce workflow ne se déclenche jamais directement : il
+# attend le verdict de "ci". On ne déploie que du code qui a passé lint + build
+# + test.
+name: deploy
+
+on:
+  # workflow_run se déclenche à la FIN du workflow "ci", quel que soit son
+  # résultat. Le job filtre ensuite sur conclusion == 'success'. C'est le seul
+  # mécanisme qui garantit "déployer seulement après une CI verte" sans
+  # redéfinir les étapes de CI ici.
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+
+# Lecture seule du dépôt. Les identifiants de déploiement viennent des secrets
+# GitHub, pas du jeton GITHUB_TOKEN.
+permissions:
+  contents: read
+
+# Un seul déploiement à la fois, TOUS types confondus (preview et production
+# partagent le même groupe, sans github.ref). Deux "vercel deploy" simultanés
+# se marchent dessus : l'ordre d'arrivée devient non déterministe et l'état
+# publié peut correspondre au plus lent.
+# cancel-in-progress: false — on NE tue PAS un déploiement en cours : une
+# publication interrompue en plein envoi laisse un état partiel. On laisse
+# finir, puis le suivant démarre.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Deux conditions cumulées :
+    #  - "ci" a réussi (sinon on ne déploie rien) ;
+    #  - le run vient de CE dépôt, pas d'un fork. Ce job s'exécute avec les
+    #    secrets Vercel en portée ; or workflow_run + checkout d'un head_sha de
+    #    fork revient à exécuter du code non fiable (scripts d'install npm,
+    #    "vercel build") à côté d'un jeton de production. On refuse donc les
+    #    forks ici. Sur ce dépôt personnel, seules des branches internes
+    #    alimentent les pull requests.
+    if: >-
+      ${{ github.event.workflow_run.conclusion == 'success'
+      && github.event.workflow_run.head_repository.full_name == github.repository }}
+    steps:
+      - name: recuperer le commit exact valide par ci
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # workflow_run s'exécute dans le contexte de main. On récupère
+          # explicitement le SHA qui a passé "ci", pas le dernier état de la
+          # branche (qui pourrait déjà avoir avancé).
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+
+      - name: installer node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # Les secrets Vercel sont FACULTATIFS. Tant qu'ils ne sont pas configurés
+      # dans le dépôt, le job réussit en annonçant qu'il n'a rien déployé, au
+      # lieu d'échouer bruyamment à chaque exécution. On teste la présence via
+      # une variable d'environnement (un secret absent devient une chaîne vide) ;
+      # on n'imprime jamais la valeur.
+      - name: verifier la presence des secrets vercel
+        id: secrets
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          if [ -n "$VERCEL_TOKEN" ] && [ -n "$VERCEL_ORG_ID" ] && [ -n "$VERCEL_PROJECT_ID" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "Secrets Vercel présents : déploiement actif."
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Secrets Vercel absents (VERCEL_TOKEN / VERCEL_ORG_ID / VERCEL_PROJECT_ID). Déploiement ignoré, ceci n'est pas une erreur."
+          fi
+
+      - name: installer les dependances
+        if: ${{ steps.secrets.outputs.configured == 'true' }}
+        run: npm ci
+
+      # CLI officielle Vercel, version figée : la livraison doit être
+      # reproductible autant que le build.
+      - name: installer la cli vercel
+        if: ${{ steps.secrets.outputs.configured == 'true' }}
+        run: npm i -g vercel@59.11.7
+
+      # --- PREVIEW : déclenché quand "ci" a été lancé par une pull_request ---
+      # Chaque PR obtient une URL de préversion isolée, sans toucher la prod.
+      - name: deploiement preview (pull request)
+        if: ${{ steps.secrets.outputs.configured == 'true' && github.event.workflow_run.event == 'pull_request' }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          vercel pull --yes --environment=preview --token="$VERCEL_TOKEN"
+          vercel build --token="$VERCEL_TOKEN"
+          vercel deploy --prebuilt --token="$VERCEL_TOKEN"
+
+      # --- PRODUCTION : déclenché quand "ci" a été lancé par un push sur main ---
+      # --prod publie sur le domaine de production.
+      - name: deploiement production (push sur main)
+        if: ${{ steps.secrets.outputs.configured == 'true' && github.event.workflow_run.event == 'push' }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+          vercel build --prod --token="$VERCEL_TOKEN"
+          vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
